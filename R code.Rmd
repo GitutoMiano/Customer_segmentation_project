@@ -1,0 +1,88 @@
+---
+title: "Customer segmentation"
+author: "David"
+date: "`r Sys.Date()`"
+output:
+    pdf_document:
+    toc: yes
+---
+
+```{r setup, message = FALSE, echo = FALSE, include=FALSE}
+# set-up R
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 100, digits = 4) #disable scientific notations
+rm(list=ls()) #clear memory
+```
+
+```{r load_packages, warning = FALSE, message = FALSE, echo = FALSE, include = False}
+# load packages
+# Check installed packages, install mising
+pkgs <- c("tidyverse", "plyr", "dplyr", "ggplot2","reshape2", "scales", "extrafont",
+          "ggthemes", "knitr", "stargazer", "formattable", "data.table", "forcats",
+          "reshape2", "lubridate", "zoo", "readxl", "flextable", "magrittr",
+          "foreign", "openxlsx", "knitr", "kableExtra", "haven", "lubridate", 
+          "cobalt", "MatchIt", "xlsx", "openxlsx", "extrafont", "fastDummies", "factoextra"
+          )
+miss_pkgs <- pkgs[!pkgs %in% installed.packages()[,1]] # vector of missing packages
+if(length(miss_pkgs)>0){
+  install.packages(miss_pkgs)
+}
+
+## Load the packages
+invisible(lapply(pkgs,library,character.only=TRUE))
+
+rm(miss_pkgs, pkgs)
+```
+
+```{r Import_dataset, warning = FALSE, message = FALSE, echo = FALSE, include = FALSE}
+#import dataset
+data<-read.csv("C:/Users/user/Documents/GitHub/Customer segmentation/train.csv")
+view(data)
+#Remove unnecessary variables
+data <- data[, 2:9]
+summary(data)
+unique(data$Profession)
+#convert blancks into NAs
+data[data== ""]<-NA
+#Remove NAs
+data<- data[complete.cases(data),]
+#NB - There are some variables that are characters and need to be changed to numerical for K-means.
+#first select numeric variables
+dataset<- data %>% select_if(is.numeric)
+view(dataset)
+character <-data %>% select_if(is.character)
+#convert character into numerical
+character<-dummy_cols(character, remove_most_frequent_dummy = TRUE)
+dataset<-cbind(dataset, character[, 6:18])
+#scale the dataset to ensure it remains as a dataframe and not a matrix
+dataset[, 1:16]<-scale(dataset[,1:16])
+```
+
+```{r k-means, warning = FALSE, message = FALSE, echo = FALSE}
+#use the elbow rule
+#determine number of segments
+fviz_nbclust(dataset, kmeans, method = "wss") + labs(subtitle = "Elbow Method")
+
+```
+
+```{r clustering, warning = FALSE, message = FALSE, echo = FALSE, include = FALSE}
+clusters<- kmeans(dataset, centers = 6, iter.max = 10)
+#check cluster characteristics
+clusters$centers
+#to assign each customer to a cluster
+dataset<- cbind(dataset, clusters$cluster)
+#convert file to csv for conditional formatting
+write.csv(clusters$centers,file = "clusters.csv")
+```
+
+```{r data_frame, warning = FALSE, message = FALSE, echo = FALSE, include = FALSE}
+#after editing the clusters.csv file in excel, I now import it as clusters1.csv (updated file)
+Customer_segment<-read.csv("C:/Users/user/Documents/GitHub/Customer segmentation/Customer_segmentation_project/Clusters1.csv")
+Customer_description<- Customer_segment$Segment
+Customer_Segmentation_Table <- data.table(Customer_description)
+Category<-c(1,2,3,4,5,6)
+data_frame<-data.frame(Category, Customer_description = Customer_Segmentation_Table$Customer_description)
+
+```
+
+'''Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
